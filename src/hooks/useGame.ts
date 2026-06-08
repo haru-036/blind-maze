@@ -22,11 +22,13 @@ export function useGame() {
   const isPlayingRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const keysRef = useRef<Record<string, boolean>>({});
+  const tiltRef = useRef({ x: 0, y: 0 });
 
   const handleOrientation = useCallback((e: DeviceOrientationEvent) => {
     if (!isPlayingRef.current) return;
     const tiltX = e.gamma ?? 0;
     const tiltY = (e.beta ?? 0) - 30;
+    tiltRef.current = { x: tiltX, y: tiltY };
     const ball = ballRef.current;
     ball.vx = (ball.vx + tiltX * TILT_ACCEL) * 0.95;
     ball.vy = (ball.vy + tiltY * TILT_ACCEL) * 0.95;
@@ -141,5 +143,5 @@ export function useGame() {
     setPhase("idle");
   }, [handleOrientation, stopAudio]);
 
-  return { phase, startGame, stopGame };
+  return { phase, startGame, stopGame, tiltRef, ballRef };
 }

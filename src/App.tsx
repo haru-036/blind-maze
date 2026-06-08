@@ -1,4 +1,5 @@
 import "./App.css";
+import { useEffect, useRef } from "react";
 import { useGame } from "./hooks/useGame";
 import {
   Headphones,
@@ -10,8 +11,51 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 
+function TiltOverlay({
+  tiltRef,
+  ballRef,
+}: {
+  tiltRef: React.RefObject<{ x: number; y: number }>;
+  ballRef: React.RefObject<{ x: number; y: number; vx: number; vy: number }>;
+}) {
+  const dotRef = useRef<HTMLSpanElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => {
+      const t = tiltRef.current;
+      const b = ballRef.current;
+      const dot = dotRef.current;
+      const label = labelRef.current;
+      if (dot && label) {
+        const MAX = 40;
+        const nx = Math.max(-1, Math.min(1, t.x / MAX));
+        const ny = Math.max(-1, Math.min(1, t.y / MAX));
+        dot.style.transform = `translate(calc(-50% + ${nx * 22}px), calc(-50% + ${ny * 22}px))`;
+        const speed = Math.hypot(b.vx, b.vy);
+        label.textContent = `γ${t.x.toFixed(0).padStart(4)} β${t.y.toFixed(0).padStart(4)}  v${speed.toFixed(1)}`;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [tiltRef, ballRef]);
+
+  return (
+    <div className="tilt-overlay">
+      <div className="tilt-ring">
+        <span ref={dotRef} className="tilt-dot" />
+      </div>
+      <span ref={labelRef} className="tilt-label" />
+    </div>
+  );
+}
+
 export default function AudioBlindMaze() {
-  const { phase, startGame, stopGame } = useGame();
+  const { phase, startGame, stopGame, tiltRef, ballRef } = useGame();
 
   return (
     <div className="maze-root">
@@ -94,6 +138,8 @@ export default function AudioBlindMaze() {
             </>
           )}
         </div>
+
+        {phase === "playing" && <TiltOverlay tiltRef={tiltRef} ballRef={ballRef} />}
       </div>
 
       <p className="maze-footer">

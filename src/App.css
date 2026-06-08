@@ -212,6 +212,43 @@
   font-family: monospace;
 }
 
+.tilt-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tilt-ring {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  background: rgba(0, 200, 255, 0.04);
+}
+
+.tilt-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #00c8ff;
+  box-shadow: 0 0 8px #00c8ff;
+  transform: translate(-50%, -50%);
+  transition: transform 0.05s linear;
+}
+
+.tilt-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: rgba(0, 200, 255, 0.5);
+  font-family: monospace;
+  white-space: pre;
+}
+
 .maze-footer {
   position: absolute;
   bottom: 1.2rem;
