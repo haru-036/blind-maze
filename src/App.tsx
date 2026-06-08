@@ -55,7 +55,7 @@ export default function AudioBlindMaze() {
           {phase === "clear" && (
             <>
               <p className="maze-hint maze-hint--clear">🏆 GOAL CLEAR!</p>
-              <p className="maze-hint">おめでとうございます！</p>
+              <p className="maze-hint maze-hint--clear">おめでとうございます！</p>
             </>
           )}
         </div>

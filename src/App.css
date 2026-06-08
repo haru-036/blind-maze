@@ -59,10 +59,11 @@
   flex-direction: column;
   align-items: center;
   gap: 1.8rem;
-  padding: 2rem;
+  padding: 2rem 1.5rem;
   z-index: 1;
   width: 100%;
   max-width: 480px;
+  box-sizing: border-box;
 }
 
 .maze-header {
@@ -188,6 +189,8 @@
 .maze-hint--clear {
   color: #00ff9d;
   font-size: 1rem;
+  text-align: center;
+  width: 100%;
 }
 
 .maze-log-box {

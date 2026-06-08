@@ -1,5 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { BALL_RADIUS, GOAL_RADIUS, INITIAL_BALL, GOAL, WALLS, KEY_ACCEL } from "../constants/maze";
+import {
+  BALL_RADIUS,
+  GOAL_RADIUS,
+  INITIAL_BALL,
+  GOAL,
+  WALLS,
+  KEY_ACCEL,
+  MAX_SPEED,
+  TILT_ACCEL,
+} from "../constants/maze";
 import { useAudio } from "./useAudio";
 
 export type Phase = "idle" | "playing" | "clear";
@@ -19,8 +28,8 @@ export function useGame() {
     const tiltX = e.gamma ?? 0;
     const tiltY = (e.beta ?? 0) - 30;
     const ball = ballRef.current;
-    ball.vx = (ball.vx + tiltX * 0.05) * 0.95;
-    ball.vy = (ball.vy + tiltY * 0.05) * 0.95;
+    ball.vx = (ball.vx + tiltX * TILT_ACCEL) * 0.95;
+    ball.vy = (ball.vy + tiltY * TILT_ACCEL) * 0.95;
   }, []);
 
   const updateGame = useCallback(() => {
@@ -34,6 +43,11 @@ export function useGame() {
     if (keys["ArrowDown"] || keys["s"]) ball.vy += KEY_ACCEL;
     ball.vx *= 0.92;
     ball.vy *= 0.92;
+    const speed = Math.hypot(ball.vx, ball.vy);
+    if (speed > MAX_SPEED) {
+      ball.vx = (ball.vx / speed) * MAX_SPEED;
+      ball.vy = (ball.vy / speed) * MAX_SPEED;
+    }
     ball.x += ball.vx;
     ball.y += ball.vy;
 

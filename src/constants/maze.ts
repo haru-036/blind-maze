@@ -10,5 +10,7 @@ export const WALLS = [
   { x: 150, y: 0, w: 20, h: 350 },
   { x: 320, y: 150, w: 20, h: 350 },
 ];
-export const HIT_COOLDOWN = 0.15;
+export const HIT_COOLDOWN = 0.5;
 export const KEY_ACCEL = 1.2;
+export const MAX_SPEED = 8;
+export const TILT_ACCEL = 0.025;
