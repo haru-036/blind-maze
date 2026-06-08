@@ -184,6 +184,9 @@
   color: rgba(200, 221, 232, 0.45);
   line-height: 1.7;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .maze-hint--clear {
@@ -191,6 +194,7 @@
   font-size: 1rem;
   text-align: center;
   width: 100%;
+  justify-content: center;
 }
 
 .maze-log-box {

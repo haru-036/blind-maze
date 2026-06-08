@@ -1,5 +1,14 @@
 import "./App.css";
 import { useGame } from "./hooks/useGame";
+import {
+  Headphones,
+  DeviceMobile,
+  Desktop,
+  Target,
+  Wall,
+  Trophy,
+  WarningCircle,
+} from "@phosphor-icons/react";
 
 export default function AudioBlindMaze() {
   const { phase, startGame, stopGame } = useGame();
@@ -20,7 +29,15 @@ export default function AudioBlindMaze() {
           <button className="maze-btn" onClick={startGame}>
             <span className="maze-btn-label">{phase === "clear" ? "▶ RETRY" : "▶ START GAME"}</span>
             <span className="maze-btn-sub">
-              {phase === "clear" ? "🎉 GOAL ACHIEVED!" : "音が出ます・傾きを許可してください"}
+              {phase === "clear" ? (
+                <>
+                  <Trophy size={12} weight="light" /> GOAL ACHIEVED!
+                </>
+              ) : (
+                <>
+                  <WarningCircle size={12} weight="light" /> 音が出ます・傾きを許可してください
+                </>
+              )}
             </span>
           </button>
         )}
@@ -38,23 +55,41 @@ export default function AudioBlindMaze() {
         <div className="maze-hint-box">
           {phase === "idle" && (
             <>
-              <p className="maze-hint">🎧 ヘッドホン推奨</p>
-              <p className="maze-hint">📱 スマホを傾けてボールを転がす</p>
-              <p className="maze-hint">💻 PC: WASD / 矢印キーで操作可</p>
-              <p className="maze-hint">🎯 「ポーン」の方向がゴール</p>
-              <p className="maze-hint">🧱 壁にぶつかると「コツ」と鳴る</p>
+              <p className="maze-hint">
+                <Headphones size={13} weight="light" /> ヘッドホン推奨
+              </p>
+              <p className="maze-hint">
+                <DeviceMobile size={13} weight="light" /> スマホを傾けてボールを転がす
+              </p>
+              <p className="maze-hint">
+                <Desktop size={13} weight="light" /> PC: WASD / 矢印キーで操作可
+              </p>
+              <p className="maze-hint">
+                <Target size={13} weight="light" /> 「ポーン」の方向がゴール
+              </p>
+              <p className="maze-hint">
+                <Wall size={13} weight="light" /> 壁にぶつかると「コツ」と鳴る
+              </p>
             </>
           )}
           {phase === "playing" && (
             <>
-              <p className="maze-hint">🎯 「ポーン」音のする方向がゴール</p>
-              <p className="maze-hint">🧱 「コツ」= 壁にぶつかった</p>
-              <p className="maze-hint">💻 WASD / 矢印キーで操作</p>
+              <p className="maze-hint">
+                <Target size={13} weight="light" /> 「ポーン」音のする方向がゴール
+              </p>
+              <p className="maze-hint">
+                <Wall size={13} weight="light" /> 「コツ」= 壁にぶつかった
+              </p>
+              <p className="maze-hint">
+                <Desktop size={13} weight="light" /> WASD / 矢印キーで操作
+              </p>
             </>
           )}
           {phase === "clear" && (
             <>
-              <p className="maze-hint maze-hint--clear">🏆 GOAL CLEAR!</p>
+              <p className="maze-hint maze-hint--clear">
+                <Trophy size={16} weight="light" /> GOAL CLEAR!
+              </p>
               <p className="maze-hint maze-hint--clear">おめでとうございます！</p>
             </>
           )}
