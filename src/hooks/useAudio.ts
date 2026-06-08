@@ -23,6 +23,7 @@ export function useAudio() {
   const ctxRef = useRef<AudioContext | null>(null);
   const pannerRef = useRef<PannerNode | null>(null);
   const lastHitRef = useRef(0);
+  const lastWallRef = useRef(0);
   const nextPingRef = useRef(0);
 
   const initAudio = useCallback(async () => {
@@ -41,7 +42,7 @@ export function useAudio() {
         pannerRef.current = panner;
       }
 
-      if (ctx.state === "suspended") {
+      if (ctx.state === "suspended" || (ctx.state as string) === "interrupted") {
         await ctx.resume();
       }
 
@@ -54,29 +55,32 @@ export function useAudio() {
   const resetTimings = useCallback(() => {
     nextPingRef.current = 0;
     lastHitRef.current = 0;
+    lastWallRef.current = 0;
   }, []);
 
-  const playHit = useCallback(() => {
+  const playHit = useCallback((impactSpeed: number) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
+    // 壁への垂直速度が小さい（ゆっくり押し付け・横滑り）は無音
+    if (impactSpeed < 1.2) return;
     const now = ctx.currentTime;
     if (now - lastHitRef.current < HIT_COOLDOWN) return;
     lastHitRef.current = now;
 
-    // 低音オシレーター：ピッチを素早く下げて「コツ」感
+    const vol = Math.min(1, impactSpeed / 6);
+
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
     osc.type = "sine";
     osc.frequency.setValueAtTime(180, now);
     osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
-    oscGain.gain.setValueAtTime(0.35, now);
+    oscGain.gain.setValueAtTime(0.35 * vol, now);
     oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
     osc.connect(oscGain);
     oscGain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.1);
 
-    // ノイズバースト：衝突の「硬さ」を出す
     const bufSize = ctx.sampleRate * 0.04;
     const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
     const data = buf.getChannelData(0);
@@ -87,7 +91,45 @@ export function useAudio() {
     filter.type = "bandpass";
     filter.frequency.value = 800;
     filter.Q.value = 0.5;
-    noiseGain.gain.setValueAtTime(0.08, now);
+    noiseGain.gain.setValueAtTime(0.08 * vol, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+    noise.buffer = buf;
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+  }, []);
+
+  const playWallTouch = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    if (now - lastWallRef.current < 0.9) return;
+    lastWallRef.current = now;
+
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+    oscGain.gain.setValueAtTime(0.12, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+
+    const bufSize = ctx.sampleRate * 0.04;
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const noise = ctx.createBufferSource();
+    const noiseGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 800;
+    filter.Q.value = 0.5;
+    noiseGain.gain.setValueAtTime(0.03, now);
     noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
     noise.buffer = buf;
     noise.connect(filter);
@@ -154,6 +196,7 @@ export function useAudio() {
     resetTimings,
     stopAudio,
     playHit,
+    playWallTouch,
     playFanfare,
     tickGoalPing,
   };

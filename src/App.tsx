@@ -1,6 +1,7 @@
 import "./App.css";
 import { useEffect, useRef } from "react";
 import { useGame } from "./hooks/useGame";
+import { MAZE_LABELS } from "./constants/maze";
 import {
   Headphones,
   DeviceMobile,
@@ -70,20 +71,26 @@ export default function AudioBlindMaze() {
         </div>
 
         {phase !== "playing" && (
-          <button className="maze-btn" onClick={startGame}>
-            <span className="maze-btn-label">{phase === "clear" ? "▶ RETRY" : "▶ START GAME"}</span>
-            <span className="maze-btn-sub">
+          <div className="maze-select">
+            <p className="maze-select-label">
               {phase === "clear" ? (
                 <>
-                  <Trophy size={12} weight="light" /> GOAL ACHIEVED!
+                  <Trophy size={12} weight="light" /> NEXT STAGE
                 </>
               ) : (
                 <>
                   <WarningCircle size={12} weight="light" /> 音が出ます・傾きを許可してください
                 </>
               )}
-            </span>
-          </button>
+            </p>
+            <div className="maze-select-btns">
+              {MAZE_LABELS.map((label, i) => (
+                <button key={label} className="maze-btn" onClick={() => startGame(i)}>
+                  <span className="maze-btn-label">▶ {label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {phase === "playing" && (

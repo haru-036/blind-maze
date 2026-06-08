@@ -2,12 +2,10 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import {
   BALL_RADIUS,
   GOAL_RADIUS,
-  INITIAL_BALL,
-  GOAL,
-  WALLS,
   KEY_ACCEL,
   MAX_SPEED,
   TILT_ACCEL,
+  MAZES,
 } from "../constants/maze";
 import { useAudio } from "./useAudio";
 
@@ -16,9 +14,11 @@ export type Phase = "idle" | "playing" | "clear";
 export function useGame() {
   const [phase, setPhase] = useState<Phase>("idle");
 
-  const { initAudio, resetTimings, stopAudio, playHit, playFanfare, tickGoalPing } = useAudio();
+  const { initAudio, resetTimings, stopAudio, playHit, playWallTouch, playFanfare, tickGoalPing } =
+    useAudio();
 
-  const ballRef = useRef({ ...INITIAL_BALL });
+  const mazeRef = useRef(MAZES[0]);
+  const ballRef = useRef({ ...mazeRef.current.ball });
   const isPlayingRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const keysRef = useRef<Record<string, boolean>>({});
@@ -53,27 +53,37 @@ export function useGame() {
     ball.x += ball.vx;
     ball.y += ball.vy;
 
-    for (const w of WALLS) {
+    for (const w of mazeRef.current.walls) {
       const cx = Math.max(w.x, Math.min(ball.x, w.x + w.w));
       const cy = Math.max(w.y, Math.min(ball.y, w.y + w.h));
       const dx = ball.x - cx;
       const dy = ball.y - cy;
       const d = Math.sqrt(dx * dx + dy * dy);
       if (d < BALL_RADIUS) {
+        let impactSpeed: number;
         if (Math.abs(dx) > Math.abs(dy)) {
+          impactSpeed = Math.abs(ball.vx);
           ball.vx *= -0.5;
           ball.x = cx + (dx > 0 ? BALL_RADIUS : -BALL_RADIUS);
         } else {
+          impactSpeed = Math.abs(ball.vy);
           ball.vy *= -0.5;
           ball.y = cy + (dy > 0 ? BALL_RADIUS : -BALL_RADIUS);
         }
-        playHit();
+        const totalSpeed = Math.hypot(ball.vx, ball.vy);
+        if (impactSpeed >= 1.2) {
+          playHit(impactSpeed);
+        } else if (totalSpeed < 1.5) {
+          // 壁に直接押し付けられてほぼ止まっている
+          playWallTouch();
+        }
       }
     }
 
-    tickGoalPing(ball, GOAL.x, GOAL.y);
+    const { goal } = mazeRef.current;
+    tickGoalPing(ball, goal.x, goal.y);
 
-    const distToGoal = Math.hypot(GOAL.x - ball.x, GOAL.y - ball.y);
+    const distToGoal = Math.hypot(goal.x - ball.x, goal.y - ball.y);
     if (distToGoal < GOAL_RADIUS) {
       isPlayingRef.current = false;
       playFanfare();
@@ -82,34 +92,44 @@ export function useGame() {
     }
 
     rafRef.current = requestAnimationFrame(updateGame);
-  }, [playHit, playFanfare, tickGoalPing]);
+  }, [playHit, playWallTouch, playFanfare, tickGoalPing]);
 
-  const startGame = useCallback(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const DOE = DeviceOrientationEvent as any;
-    if (
-      typeof DeviceOrientationEvent !== "undefined" &&
-      typeof DOE.requestPermission === "function"
-    ) {
-      try {
-        const s = await DOE.requestPermission();
-        if (s !== "granted") return;
-      } catch {
-        // permission denied or not supported
+  const startGame = useCallback(
+    async (mazeIndex: number) => {
+      // 前のセッションを必ずクリーンアップ（clear からのリトライ時も含む）
+      isPlayingRef.current = false;
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("deviceorientation", handleOrientation);
+      stopAudio();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const DOE = DeviceOrientationEvent as any;
+      if (
+        typeof DeviceOrientationEvent !== "undefined" &&
+        typeof DOE.requestPermission === "function"
+      ) {
+        try {
+          const s = await DOE.requestPermission();
+          if (s !== "granted") return;
+        } catch {
+          // permission denied or not supported
+        }
       }
-    }
 
-    const ok = await initAudio();
-    if (!ok) return;
+      const ok = await initAudio();
+      if (!ok) return;
 
-    ballRef.current = { ...INITIAL_BALL };
-    resetTimings();
-    isPlayingRef.current = true;
+      mazeRef.current = MAZES[mazeIndex];
+      ballRef.current = { ...mazeRef.current.ball };
+      resetTimings();
+      isPlayingRef.current = true;
 
-    window.addEventListener("deviceorientation", handleOrientation);
-    setPhase("playing");
-    rafRef.current = requestAnimationFrame(updateGame);
-  }, [initAudio, resetTimings, handleOrientation, updateGame]);
+      window.addEventListener("deviceorientation", handleOrientation);
+      setPhase("playing");
+      rafRef.current = requestAnimationFrame(updateGame);
+    },
+    [initAudio, resetTimings, handleOrientation, updateGame, stopAudio],
+  );
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
