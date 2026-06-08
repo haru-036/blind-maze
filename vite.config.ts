@@ -1,5 +1,6 @@
 import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
+import { cloudflare } from "@cloudflare/vite-plugin";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -129,5 +130,5 @@ export default defineConfig({
       "vite-plus/prefer-vite-plus-imports": "error",
     },
   },
-  plugins: [react()],
+  plugins: [react(), cloudflare()],
 });
