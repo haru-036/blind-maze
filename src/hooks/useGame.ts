@@ -6,19 +6,8 @@ export type Phase = "idle" | "playing" | "clear";
 
 export function useGame() {
   const [phase, setPhase] = useState<Phase>("idle");
-  const [logs, setLogs] = useState<string[]>([]);
-  const addLog = useCallback((msg: string) => setLogs((p) => [...p.slice(-6), msg]), []);
 
-  const {
-    initAudio,
-    resetTimings,
-    playHit,
-    playFanfare,
-    stopRoll,
-    updateRoll,
-    tickWallWarning,
-    tickGoalPing,
-  } = useAudio(addLog);
+  const { initAudio, resetTimings, stopAudio, playHit, playFanfare, tickGoalPing } = useAudio();
 
   const ballRef = useRef({ ...INITIAL_BALL });
   const isPlayingRef = useRef(false);
@@ -48,7 +37,6 @@ export function useGame() {
     ball.x += ball.vx;
     ball.y += ball.vy;
 
-    let minDist = Infinity;
     for (const w of WALLS) {
       const cx = Math.max(w.x, Math.min(ball.x, w.x + w.w));
       const cy = Math.max(w.y, Math.min(ball.y, w.y + w.h));
@@ -65,29 +53,22 @@ export function useGame() {
         }
         playHit();
       }
-      if (d < minDist) minDist = d;
     }
 
-    const spd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-    updateRoll(spd);
-    tickWallWarning(minDist);
     tickGoalPing(ball, GOAL.x, GOAL.y);
 
     const distToGoal = Math.hypot(GOAL.x - ball.x, GOAL.y - ball.y);
     if (distToGoal < GOAL_RADIUS) {
       isPlayingRef.current = false;
-      stopRoll();
       playFanfare();
       setPhase("clear");
       return;
     }
 
     rafRef.current = requestAnimationFrame(updateGame);
-  }, [playHit, playFanfare, stopRoll, updateRoll, tickWallWarning, tickGoalPing]);
+  }, [playHit, playFanfare, tickGoalPing]);
 
   const startGame = useCallback(async () => {
-    addLog("スタートボタン押下");
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const DOE = DeviceOrientationEvent as any;
     if (
@@ -96,16 +77,10 @@ export function useGame() {
     ) {
       try {
         const s = await DOE.requestPermission();
-        if (s !== "granted") {
-          addLog("センサー許可なし");
-          return;
-        }
-        addLog("センサーOK");
-      } catch (err) {
-        addLog("センサーエラー: " + (err instanceof Error ? err.message : String(err)));
+        if (s !== "granted") return;
+      } catch {
+        // permission denied or not supported
       }
-    } else {
-      addLog("センサー: 許可不要(非iOS)");
     }
 
     const ok = await initAudio();
@@ -117,9 +92,8 @@ export function useGame() {
 
     window.addEventListener("deviceorientation", handleOrientation);
     setPhase("playing");
-    addLog("ゲーム開始！");
     rafRef.current = requestAnimationFrame(updateGame);
-  }, [addLog, initAudio, resetTimings, handleOrientation, updateGame]);
+  }, [initAudio, resetTimings, handleOrientation, updateGame]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -145,5 +119,13 @@ export function useGame() {
     [handleOrientation],
   );
 
-  return { phase, logs, startGame };
+  const stopGame = useCallback(() => {
+    isPlayingRef.current = false;
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    window.removeEventListener("deviceorientation", handleOrientation);
+    stopAudio();
+    setPhase("idle");
+  }, [handleOrientation, stopAudio]);
+
+  return { phase, startGame, stopGame };
 }

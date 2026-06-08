@@ -2,7 +2,7 @@ import "./App.css";
 import { useGame } from "./hooks/useGame";
 
 export default function AudioBlindMaze() {
-  const { phase, logs, startGame } = useGame();
+  const { phase, startGame, stopGame } = useGame();
 
   return (
     <div className="maze-root">
@@ -29,6 +29,9 @@ export default function AudioBlindMaze() {
           <div className="maze-playing-indicator">
             <span className="maze-dot" />
             <span className="maze-playing-label">NOW PLAYING</span>
+            <button className="maze-stop-btn" onClick={stopGame}>
+              ■ STOP
+            </button>
           </div>
         )}
 
@@ -39,12 +42,13 @@ export default function AudioBlindMaze() {
               <p className="maze-hint">📱 スマホを傾けてボールを転がす</p>
               <p className="maze-hint">💻 PC: WASD / 矢印キーで操作可</p>
               <p className="maze-hint">🎯 「ポーン」の方向がゴール</p>
+              <p className="maze-hint">🧱 壁にぶつかると「コツ」と鳴る</p>
             </>
           )}
           {phase === "playing" && (
             <>
               <p className="maze-hint">🎯 「ポーン」音のする方向がゴール</p>
-              <p className="maze-hint">⚠️ 「ピッ」連打 = 壁が近い</p>
+              <p className="maze-hint">🧱 「コツ」= 壁にぶつかった</p>
               <p className="maze-hint">💻 WASD / 矢印キーで操作</p>
             </>
           )}
@@ -55,16 +59,6 @@ export default function AudioBlindMaze() {
             </>
           )}
         </div>
-
-        {logs.length > 0 && (
-          <div className="maze-log-box">
-            {logs.map((l, i) => (
-              <p key={i} className="maze-log-line">
-                {l}
-              </p>
-            ))}
-          </div>
-        )}
       </div>
 
       <p className="maze-footer">

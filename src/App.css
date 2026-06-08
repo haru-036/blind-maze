@@ -19,7 +19,7 @@
 }
 
 .maze-root {
-  min-height: 100vh;
+  min-height: 100svh;
   background: #060a0e;
   color: #c8dde8;
   font-family: "Courier New", Courier, monospace;
@@ -151,13 +151,30 @@
   animation: pulse-ball 1s ease-in-out infinite;
 }
 
+.maze-stop-btn {
+  background: transparent;
+  border: 1px solid #ff4455;
+  color: #ff4455;
+  font-family: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.maze-stop-btn:active {
+  background: #ff445522;
+}
+
 .maze-hint-box {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   width: 100%;
-  border-left: 2px solid rgba(0, 200, 255, 0.2);
-  padding-left: 1rem;
+  border-left: 2px solid rgba(0, 200, 255, 0.3);
+  background: rgba(0, 200, 255, 0.04);
+  padding: 0.9rem 1rem;
 }
 
 .maze-hint {
@@ -165,6 +182,7 @@
   font-size: 0.75rem;
   color: rgba(200, 221, 232, 0.45);
   line-height: 1.7;
+  text-align: left;
 }
 
 .maze-hint--clear {

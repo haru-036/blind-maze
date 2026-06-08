@@ -19,18 +19,14 @@ function playTone(ctx: AudioContext, dest: AudioNode, freq: number, peakGain: nu
   osc.stop(now + dur);
 }
 
-export function useAudio(addLog: (msg: string) => void) {
+export function useAudio() {
   const ctxRef = useRef<AudioContext | null>(null);
   const pannerRef = useRef<PannerNode | null>(null);
-  const rollOscRef = useRef<OscillatorNode | null>(null);
-  const rollGainRef = useRef<GainNode | null>(null);
   const lastHitRef = useRef(0);
   const nextPingRef = useRef(0);
-  const nextWallPingRef = useRef(0);
 
   const initAudio = useCallback(async () => {
     try {
-      // Reuse context across retries; browsers cap AudioContext instances
       let ctx = ctxRef.current;
       if (!ctx) {
         ctx = new AudioCtxClass();
@@ -45,45 +41,18 @@ export function useAudio(addLog: (msg: string) => void) {
         pannerRef.current = panner;
       }
 
-      addLog("ctx作成: " + ctx.state);
       if (ctx.state === "suspended") {
         await ctx.resume();
-        addLog("resume後: " + ctx.state);
       }
 
-      // Stop previous oscillator before creating a new one for this session
-      try {
-        rollOscRef.current?.stop();
-      } catch {
-        /* already stopped */
-      }
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 200;
-      osc.type = "triangle";
-      osc.frequency.value = 80;
-      gain.gain.value = 0;
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      rollOscRef.current = osc;
-      rollGainRef.current = gain;
-
-      addLog("音声初期化OK");
       return true;
-    } catch (e) {
-      addLog("音声エラー: " + (e instanceof Error ? e.message : String(e)));
+    } catch {
       return false;
     }
-  }, [addLog]);
+  }, []);
 
   const resetTimings = useCallback(() => {
     nextPingRef.current = 0;
-    nextWallPingRef.current = 0;
     lastHitRef.current = 0;
   }, []);
 
@@ -93,19 +62,44 @@ export function useAudio(addLog: (msg: string) => void) {
     const now = ctx.currentTime;
     if (now - lastHitRef.current < HIT_COOLDOWN) return;
     lastHitRef.current = now;
-    playTone(ctx, ctx.destination, 120, 0.4, 0.12);
-  }, []);
 
-  const playWallWarning = useCallback(() => {
-    const ctx = ctxRef.current;
-    if (!ctx) return;
-    playTone(ctx, ctx.destination, 880, 0.05, 0.05);
+    // 低音オシレーター：ピッチを素早く下げて「コツ」感
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+    oscGain.gain.setValueAtTime(0.35, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+
+    // ノイズバースト：衝突の「硬さ」を出す
+    const bufSize = ctx.sampleRate * 0.04;
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const noise = ctx.createBufferSource();
+    const noiseGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 800;
+    filter.Q.value = 0.5;
+    noiseGain.gain.setValueAtTime(0.08, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+    noise.buffer = buf;
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
   }, []);
 
   const playGoalPing = useCallback(() => {
     const ctx = ctxRef.current;
     if (!ctx || !pannerRef.current) return;
-    playTone(ctx, pannerRef.current, 440, 0.2, 0.4);
+    playTone(ctx, pannerRef.current, 220, 0.2, 0.4);
   }, []);
 
   const playFanfare = useCallback(() => {
@@ -124,36 +118,6 @@ export function useAudio(addLog: (msg: string) => void) {
       osc.stop(now + i * 0.15 + 0.5);
     });
   }, []);
-
-  const stopRoll = useCallback(() => {
-    try {
-      rollOscRef.current?.stop();
-    } catch {
-      /* already stopped */
-    }
-  }, []);
-
-  const updateRoll = useCallback((spd: number) => {
-    const ctx = ctxRef.current;
-    if (!ctx || !rollGainRef.current || !rollOscRef.current) return;
-    const now = ctx.currentTime;
-    rollGainRef.current.gain.setTargetAtTime(Math.min(spd / 10, 0.5), now, 0.1);
-    rollOscRef.current.frequency.setTargetAtTime(80 + spd * 5, now, 0.1);
-  }, []);
-
-  const tickWallWarning = useCallback(
-    (minDist: number) => {
-      const ctx = ctxRef.current;
-      if (!ctx || minDist >= 80) return;
-      const now = ctx.currentTime;
-      const interval = 0.1 + (minDist / 80) * 0.5;
-      if (now > nextWallPingRef.current) {
-        playWallWarning();
-        nextWallPingRef.current = now + interval;
-      }
-    },
-    [playWallWarning],
-  );
 
   const tickGoalPing = useCallback(
     (ball: { x: number; y: number }, goalX: number, goalY: number) => {
@@ -177,14 +141,20 @@ export function useAudio(addLog: (msg: string) => void) {
     [playGoalPing],
   );
 
+  const stopAudio = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    void ctx.close();
+    ctxRef.current = null;
+    pannerRef.current = null;
+  }, []);
+
   return {
     initAudio,
     resetTimings,
+    stopAudio,
     playHit,
     playFanfare,
-    stopRoll,
-    updateRoll,
-    tickWallWarning,
     tickGoalPing,
   };
 }
