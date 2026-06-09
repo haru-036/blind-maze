@@ -101,10 +101,7 @@ export function useGame() {
       window.removeEventListener("deviceorientation", handleOrientation);
       stopAudio();
 
-      // AudioContext はユーザージェスチャー中（await前）に作成する必要がある（iOS制約）
-      const ok = await initAudio();
-      if (!ok) return;
-
+      // iOS: DeviceOrientation の permission はユーザージェスチャー直後（最初の await）で呼ぶ必要がある
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const DOE = DeviceOrientationEvent as any;
       if (
@@ -115,9 +112,13 @@ export function useGame() {
           const s = await DOE.requestPermission();
           if (s !== "granted") return;
         } catch {
-          // permission denied or not supported
+          return;
         }
       }
+
+      // AudioContext はユーザージェスチャーから派生した Promise チェーン内で作成（iOS制約）
+      const ok = await initAudio();
+      if (!ok) return;
 
       mazeRef.current = MAZES[mazeIndex];
       ballRef.current = { ...mazeRef.current.ball };
