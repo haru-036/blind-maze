@@ -19,6 +19,37 @@ function playTone(ctx: AudioContext, dest: AudioNode, freq: number, peakGain: nu
   osc.stop(now + dur);
 }
 
+export type WallDirection = "left" | "right" | "top" | "bottom";
+
+function directionToXZ(dir: WallDirection): [number, number] {
+  switch (dir) {
+    case "left":
+      return [-3, 0];
+    case "right":
+      return [3, 0];
+    case "top":
+      return [0, -3]; // 前
+    case "bottom":
+      return [0, 3]; // 後ろ
+  }
+}
+
+function makeHitPanner(ctx: AudioContext, dir: WallDirection): PannerNode {
+  const p = ctx.createPanner();
+  p.panningModel = "HRTF";
+  p.distanceModel = "linear";
+  p.rolloffFactor = 0;
+  const [x, z] = directionToXZ(dir);
+  if (p.positionX) {
+    p.positionX.setValueAtTime(x, ctx.currentTime);
+    p.positionZ.setValueAtTime(z, ctx.currentTime);
+  } else {
+    p.setPosition?.(x, 0, z);
+  }
+  p.connect(ctx.destination);
+  return p;
+}
+
 export function useAudio() {
   const ctxRef = useRef<AudioContext | null>(null);
   const pannerRef = useRef<PannerNode | null>(null);
@@ -58,16 +89,16 @@ export function useAudio() {
     lastWallRef.current = 0;
   }, []);
 
-  const playHit = useCallback((impactSpeed: number) => {
+  const playHit = useCallback((impactSpeed: number, direction: WallDirection) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
-    // 壁への垂直速度が小さい（ゆっくり押し付け・横滑り）は無音
     if (impactSpeed < 1.2) return;
     const now = ctx.currentTime;
     if (now - lastHitRef.current < HIT_COOLDOWN) return;
     lastHitRef.current = now;
 
     const vol = Math.min(1, impactSpeed / 6);
+    const dest = makeHitPanner(ctx, direction);
 
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
@@ -77,7 +108,7 @@ export function useAudio() {
     oscGain.gain.setValueAtTime(0.35 * vol, now);
     oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
     osc.connect(oscGain);
-    oscGain.connect(ctx.destination);
+    oscGain.connect(dest);
     osc.start(now);
     osc.stop(now + 0.1);
 
@@ -96,16 +127,18 @@ export function useAudio() {
     noise.buffer = buf;
     noise.connect(filter);
     filter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
+    noiseGain.connect(dest);
     noise.start(now);
   }, []);
 
-  const playWallTouch = useCallback(() => {
+  const playWallTouch = useCallback((direction: WallDirection) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
     const now = ctx.currentTime;
     if (now - lastWallRef.current < 0.9) return;
     lastWallRef.current = now;
+
+    const dest = makeHitPanner(ctx, direction);
 
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
@@ -115,7 +148,7 @@ export function useAudio() {
     oscGain.gain.setValueAtTime(0.12, now);
     oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
     osc.connect(oscGain);
-    oscGain.connect(ctx.destination);
+    oscGain.connect(dest);
     osc.start(now);
     osc.stop(now + 0.1);
 
@@ -134,7 +167,7 @@ export function useAudio() {
     noise.buffer = buf;
     noise.connect(filter);
     filter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
+    noiseGain.connect(dest);
     noise.start(now);
   }, []);
 

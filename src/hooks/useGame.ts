@@ -8,6 +8,7 @@ import {
   MAZES,
 } from "../constants/maze";
 import { useAudio } from "./useAudio";
+import type { WallDirection } from "./useAudio";
 
 export type Phase = "idle" | "playing" | "clear";
 
@@ -61,21 +62,23 @@ export function useGame() {
       const d = Math.sqrt(dx * dx + dy * dy);
       if (d < BALL_RADIUS) {
         let impactSpeed: number;
+        let dir: WallDirection;
         if (Math.abs(dx) > Math.abs(dy)) {
           impactSpeed = Math.abs(ball.vx);
           ball.vx *= -0.5;
           ball.x = cx + (dx > 0 ? BALL_RADIUS : -BALL_RADIUS);
+          dir = dx > 0 ? "left" : "right";
         } else {
           impactSpeed = Math.abs(ball.vy);
           ball.vy *= -0.5;
           ball.y = cy + (dy > 0 ? BALL_RADIUS : -BALL_RADIUS);
+          dir = dy > 0 ? "top" : "bottom";
         }
         const totalSpeed = Math.hypot(ball.vx, ball.vy);
         if (impactSpeed >= 1.2) {
-          playHit(impactSpeed);
+          playHit(impactSpeed, dir);
         } else if (totalSpeed < 1.5) {
-          // 壁に直接押し付けられてほぼ止まっている
-          playWallTouch();
+          playWallTouch(dir);
         }
       }
     }
