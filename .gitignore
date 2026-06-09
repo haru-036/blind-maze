@@ -27,3 +27,4 @@ dist-ssr
 !.vscode/extensions.json
 
 .wrangler/
+.playwright-cli/
