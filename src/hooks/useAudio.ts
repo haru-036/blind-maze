@@ -174,7 +174,7 @@ export function useAudio() {
   const playGoalPing = useCallback(() => {
     const ctx = ctxRef.current;
     if (!ctx || !pannerRef.current) return;
-    playTone(ctx, pannerRef.current, 220, 0.2, 0.4);
+    playTone(ctx, pannerRef.current, 220, 0.1, 0.4);
   }, []);
 
   const playFanfare = useCallback(() => {

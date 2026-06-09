@@ -1,12 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import {
-  BALL_RADIUS,
-  GOAL_RADIUS,
-  KEY_ACCEL,
-  MAX_SPEED,
-  TILT_ACCEL,
-  MAZES,
-} from "../constants/maze";
+import { BALL_RADIUS, KEY_ACCEL, MAX_SPEED, TILT_ACCEL, MAZES } from "../constants/maze";
 import { useAudio } from "./useAudio";
 import type { WallDirection } from "./useAudio";
 
@@ -65,12 +58,12 @@ export function useGame() {
         let dir: WallDirection;
         if (Math.abs(dx) > Math.abs(dy)) {
           impactSpeed = Math.abs(ball.vx);
-          ball.vx *= -0.5;
+          ball.vx = 0;
           ball.x = cx + (dx > 0 ? BALL_RADIUS : -BALL_RADIUS);
           dir = dx > 0 ? "left" : "right";
         } else {
           impactSpeed = Math.abs(ball.vy);
-          ball.vy *= -0.5;
+          ball.vy = 0;
           ball.y = cy + (dy > 0 ? BALL_RADIUS : -BALL_RADIUS);
           dir = dy > 0 ? "top" : "bottom";
         }
@@ -84,10 +77,13 @@ export function useGame() {
     }
 
     const { goal } = mazeRef.current;
-    tickGoalPing(ball, goal.x, goal.y);
+    const goalCx = goal.x + goal.w / 2;
+    const goalCy = goal.y + goal.h / 2;
+    tickGoalPing(ball, goalCx, goalCy);
 
-    const distToGoal = Math.hypot(goal.x - ball.x, goal.y - ball.y);
-    if (distToGoal < GOAL_RADIUS) {
+    const gcx = Math.max(goal.x, Math.min(ball.x, goal.x + goal.w));
+    const gcy = Math.max(goal.y, Math.min(ball.y, goal.y + goal.h));
+    if (Math.hypot(ball.x - gcx, ball.y - gcy) < BALL_RADIUS) {
       isPlayingRef.current = false;
       playFanfare();
       setPhase("clear");
@@ -167,5 +163,5 @@ export function useGame() {
     setPhase("idle");
   }, [handleOrientation, stopAudio]);
 
-  return { phase, startGame, stopGame, tiltRef, ballRef };
+  return { phase, startGame, stopGame, tiltRef, ballRef, mazeRef };
 }

@@ -1,7 +1,7 @@
 import "./App.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGame } from "./hooks/useGame";
-import { MAZE_LABELS } from "./constants/maze";
+import { MAZE_LABELS, BALL_RADIUS } from "./constants/maze";
 import {
   Headphones,
   DeviceMobile,
@@ -55,8 +55,130 @@ function TiltOverlay({
   );
 }
 
+function MazeDebugView({
+  mazeRef,
+  ballRef,
+}: {
+  mazeRef: React.RefObject<{
+    walls: { x: number; y: number; w: number; h: number }[];
+    ball: { x: number; y: number; vx: number; vy: number };
+    goal: { x: number; y: number; w: number; h: number };
+  }>;
+  ballRef: React.RefObject<{ x: number; y: number; vx: number; vy: number }>;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const maze = mazeRef.current;
+      const ball = ballRef.current;
+      const S = canvas.width / 500;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // ゴール壁
+      const g = maze.goal;
+      ctx.fillStyle = "rgba(0,255,120,0.3)";
+      ctx.fillRect(g.x * S, g.y * S, g.w * S, g.h * S);
+      ctx.strokeStyle = "#00ff78";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(g.x * S, g.y * S, g.w * S, g.h * S);
+      ctx.fillStyle = "#00ff78";
+      ctx.font = `${9 * S}px monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText("GOAL", (g.x + g.w / 2) * S, (g.y - 3) * S);
+
+      // 壁
+      for (const w of maze.walls) {
+        ctx.fillStyle = "#3a6ea5";
+        ctx.fillRect(w.x * S, w.y * S, w.w * S, w.h * S);
+        ctx.strokeStyle = "#5a9ed5";
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(w.x * S, w.y * S, w.w * S, w.h * S);
+      }
+
+      // ボール
+      ctx.beginPath();
+      ctx.arc(ball.x * S, ball.y * S, BALL_RADIUS * S, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff6b35";
+      ctx.fill();
+      ctx.strokeStyle = "#ffaa80";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // 速度ベクトル
+      const vScale = 4;
+      ctx.beginPath();
+      ctx.moveTo(ball.x * S, ball.y * S);
+      ctx.lineTo((ball.x + ball.vx * vScale) * S, (ball.y + ball.vy * vScale) * S);
+      ctx.strokeStyle = "#ffaa80";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // 座標ラベル
+      ctx.fillStyle = "#888";
+      ctx.font = `${9 * S}px monospace`;
+      ctx.textAlign = "left";
+      ctx.fillText(`(${Math.round(ball.x)}, ${Math.round(ball.y)})`, (ball.x + 18) * S, ball.y * S);
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [mazeRef, ballRef]);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 8,
+        right: 8,
+        zIndex: 9999,
+        opacity: 0.92,
+        border: "1px solid #3a6ea5",
+        borderRadius: 4,
+        overflow: "hidden",
+        boxShadow: "0 2px 12px #000a",
+      }}
+    >
+      <div
+        style={{
+          background: "#111",
+          color: "#5a9ed5",
+          fontSize: 9,
+          fontFamily: "monospace",
+          padding: "2px 6px",
+          letterSpacing: 1,
+        }}
+      >
+        DEBUG MAZE VIEW
+      </div>
+      <canvas ref={canvasRef} width={250} height={250} style={{ display: "block" }} />
+    </div>
+  );
+}
+
 export default function AudioBlindMaze() {
-  const { phase, startGame, stopGame, tiltRef, ballRef } = useGame();
+  const { phase, startGame, stopGame, tiltRef, ballRef, mazeRef } = useGame();
+  const [debugVisible, setDebugVisible] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "`") setDebugVisible((v) => !v);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   return (
     <div className="maze-root">
@@ -148,6 +270,32 @@ export default function AudioBlindMaze() {
 
         {phase === "playing" && <TiltOverlay tiltRef={tiltRef} ballRef={ballRef} />}
       </div>
+
+      {import.meta.env.DEV && (
+        <>
+          {debugVisible && <MazeDebugView mazeRef={mazeRef} ballRef={ballRef} />}
+          <button
+            onClick={() => setDebugVisible((v) => !v)}
+            style={{
+              position: "fixed",
+              bottom: 8,
+              right: 8,
+              zIndex: 9999,
+              background: debugVisible ? "#3a6ea5" : "#222",
+              color: debugVisible ? "#fff" : "#666",
+              border: "1px solid #3a6ea5",
+              borderRadius: 3,
+              padding: "3px 8px",
+              fontSize: 10,
+              fontFamily: "monospace",
+              cursor: "pointer",
+              letterSpacing: 1,
+            }}
+          >
+            {debugVisible ? "MAZE OFF" : "MAZE ON"} [`]
+          </button>
+        </>
+      )}
 
       <p className="maze-footer">
         {phase === "idle" && "画面を見ずにプレイしてください"}
